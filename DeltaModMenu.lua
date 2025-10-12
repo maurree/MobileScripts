@@ -1,319 +1,510 @@
--- Delta Executor Compatible Enhanced Mod Menu
--- Optimized for Delta and other mobile executors
-
-print("🔄 Loading Delta-Compatible Mod Menu...")
-wait(0.2)
-print("📱 Optimized for mobile executors...")
-wait(0.2)
-print("✅ Delta compatibility enabled!")
-
--- Services (Delta-safe method)
-local success, Players = pcall(function() return game:GetService("Players") end)
-if not success then Players = game.Players end
-
-local success, RunService = pcall(function() return game:GetService("RunService") end)
-if not success then RunService = game["Run Service"] end
-
-local success, UserInputService = pcall(function() return game:GetService("UserInputService") end)
-if not success then UserInputService = game.UserInputService end
-
-local success, TweenService = pcall(function() return game:GetService("TweenService") end)
-if not success then TweenService = game.TweenService end
-
-local success, CoreGui = pcall(function() return game:GetService("CoreGui") end)
-if not success then CoreGui = game.CoreGui end
+-- LIVE GAMEPLAY COMBAT SYSTEM - Real-time Updates with Collision Prevention
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Configuration (Delta-optimized)
-local config = {
-    hitboxSize = 20,
-    hitboxEnabled = false,
-    speedEnabled = false,
-    jumpEnabled = false,
-    noclipEnabled = false,
-    flyEnabled = false,
-    espEnabled = false,
-    flySpeed = 40
+-- Live gameplay configuration
+local liveGameplay = {
+    -- Real-time states
+    combatActive = false,
+    speedActive = false,
+    jumpActive = false,
+    noclipActive = false,
+    
+    -- Live values (update instantly)
+    combatMultiplier = 1,
+    speedValue = 16,
+    jumpValue = 50,
+    
+    -- Performance settings
+    updateRate = 0.1,  -- Update every 0.1 seconds for smooth performance
+    lastUpdate = 0
 }
 
--- Storage
-local storage = {
-    originalSizes = {},
-    hitboxParts = {},
-    espParts = {},
-    connections = {},
-    flyBodyVelocity = nil,
-    flyBodyAngularVelocity = nil
+local gameplayData = {
+    originalValues = {},
+    activeConnections = {},
+    combatTargets = {},
+    playerLimbs = {}
 }
 
--- Delta-safe GUI creation
-local function createGui()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "DeltaModMenu_" .. math.random(1000, 9999)
-    screenGui.ResetOnSpawn = false
-    
-    -- Try CoreGui first, fallback to PlayerGui
-    local success = pcall(function()
-        screenGui.Parent = CoreGui
-    end)
-    
-    if not success then
-        screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Create always-visible mini GUI for live control
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LiveGameplayMods"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer.PlayerGui
+
+-- Main live control panel
+local livePanel = Instance.new("Frame")
+livePanel.Size = UDim2.new(0, 300, 0, 400)
+livePanel.Position = UDim2.new(0, 10, 0, 10)
+livePanel.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+livePanel.BorderSizePixel = 2
+livePanel.BorderColor3 = Color3.fromRGB(0, 255, 0)
+livePanel.Active = true
+livePanel.Draggable = true
+livePanel.Parent = screenGui
+
+-- Live status header
+local liveHeader = Instance.new("Frame")
+liveHeader.Size = UDim2.new(1, 0, 0, 40)
+liveHeader.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+liveHeader.BorderSizePixel = 0
+liveHeader.Parent = livePanel
+
+local liveTitle = Instance.new("TextLabel")
+liveTitle.Size = UDim2.new(1, -80, 1, 0)
+liveTitle.Position = UDim2.new(0, 5, 0, 0)
+liveTitle.BackgroundTransparency = 1
+liveTitle.Text = "🔴 LIVE GAMEPLAY"
+liveTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+liveTitle.TextScaled = true
+liveTitle.Font = Enum.Font.SourceSansBold
+liveTitle.Parent = liveHeader
+
+-- Live indicator
+local liveIndicator = Instance.new("Frame")
+liveIndicator.Size = UDim2.new(0, 15, 0, 15)
+liveIndicator.Position = UDim2.new(1, -70, 0, 12)
+liveIndicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+liveIndicator.BorderSizePixel = 0
+liveIndicator.Parent = liveHeader
+
+-- Make indicator blink
+spawn(function()
+    while true do
+        liveIndicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        wait(0.5)
+        liveIndicator.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        wait(0.5)
     end
+end)
+
+-- Minimize button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.TextScaled = true
+minimizeBtn.BorderSizePixel = 0
+minimizeBtn.Parent = liveHeader
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -10, 1, -50)
+content.Position = UDim2.new(0, 5, 0, 45)
+content.BackgroundTransparency = 1
+content.Parent = livePanel
+
+-- REAL-TIME COMBAT SYSTEM WITH COLLISION PREVENTION
+local function updateLiveCombat()
+    if not liveGameplay.combatActive then return end
     
-    return screenGui
-end
-
-local screenGui = createGui()
-
--- Main Frame (Mobile-optimized size)
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 320, 0, 480) -- Smaller for mobile
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -240)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Visible = false
-mainFrame.Parent = screenGui
-
--- Add corner rounding (Delta-safe)
-local success = pcall(function()
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
-end)
-
--- Add stroke (Delta-safe)
-local success = pcall(function()
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(255, 100, 100)
-    stroke.Thickness = 2
-    stroke.Parent = mainFrame
-end)
-
--- Header
-local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 60)
-header.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-header.BorderSizePixel = 0
-header.Parent = mainFrame
-
--- Header corner (Delta-safe)
-pcall(function()
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 12)
-    headerCorner.Parent = header
-end)
-
--- Title
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -70, 0, 30)
-titleLabel.Position = UDim2.new(0, 10, 0, 5)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🔥 DELTA MOD MENU"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.SourceSansBold -- Delta-compatible font
-titleLabel.Parent = header
-
--- Subtitle
-local subtitleLabel = Instance.new("TextLabel")
-subtitleLabel.Size = UDim2.new(1, -70, 0, 20)
-subtitleLabel.Position = UDim2.new(0, 10, 0, 35)
-subtitleLabel.BackgroundTransparency = 1
-subtitleLabel.Text = "Mobile Executor Compatible"
-subtitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-subtitleLabel.TextScaled = true
-subtitleLabel.Font = Enum.Font.SourceSans
-subtitleLabel.TextTransparency = 0.3
-subtitleLabel.Parent = header
-
--- Close button
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(255, 80, 80)
-closeButton.TextScaled = true
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.BorderSizePixel = 0
-closeButton.Parent = header
-
--- Content area
-local contentFrame = Instance.new("ScrollingFrame")
-contentFrame.Size = UDim2.new(1, -20, 1, -80)
-contentFrame.Position = UDim2.new(0, 10, 0, 70)
-contentFrame.BackgroundTransparency = 1
-contentFrame.ScrollBarThickness = 6
-contentFrame.BorderSizePixel = 0
-contentFrame.Parent = mainFrame
-
--- Layout
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
-layout.Parent = contentFrame
-
--- Delta-safe function to create sections
-local function createSection(text, icon)
-    local section = Instance.new("Frame")
-    section.Size = UDim2.new(1, -10, 0, 35)
-    section.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    section.BorderSizePixel = 0
-    section.Parent = contentFrame
-
-    pcall(function()
-        local sectionCorner = Instance.new("UICorner")
-        sectionCorner.CornerRadius = UDim.new(0, 8)
-        sectionCorner.Parent = section
-    end)
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, -10, 1, 0)
-    textLabel.Position = UDim2.new(0, 5, 0, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = icon .. " " .. text
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.Parent = section
-
-    return section
-end
-
--- Delta-safe function to create buttons
-local function createButton(text, icon, callback)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -10, 0, 45)
-    button.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    button.BorderSizePixel = 0
-    button.Parent = contentFrame
-
-    pcall(function()
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(0, 8)
-        buttonCorner.Parent = button
-    end)
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, -10, 1, 0)
-    textLabel.Position = UDim2.new(0, 5, 0, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = icon .. " " .. text
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextScaled = true
-    textLabel.Font = Enum.Font.SourceSans
-    textLabel.Parent = button
-
-    -- Delta-safe connection
-    local connection = button.MouseButton1Click:Connect(function()
-        pcall(callback)
-    end)
-    table.insert(storage.connections, connection)
-
-    return button, textLabel
-end
-
--- Delta-safe hitbox functions
-local function updateHitbox(player)
-    if player == LocalPlayer then return end
+    local currentTime = tick()
+    if currentTime - liveGameplay.lastUpdate < liveGameplay.updateRate then return end
+    liveGameplay.lastUpdate = currentTime
     
-    pcall(function()
-        local character = player.Character
-        if not character then return end
-        
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if not humanoidRootPart then return end
-        
-        -- Remove old hitbox
-        local oldHitbox = character:FindFirstChild("ExtendedHitbox")
-        if oldHitbox then
-            pcall(function() oldHitbox:Destroy() end)
-        end
-        
-        -- Create new hitbox
-        local hitbox = Instance.new("Part")
-        hitbox.Name = "ExtendedHitbox"
-        hitbox.Size = Vector3.new(config.hitboxSize, config.hitboxSize, config.hitboxSize)
-        hitbox.CFrame = humanoidRootPart.CFrame
-        hitbox.Anchored = false
-        hitbox.CanCollide = false
-        hitbox.Transparency = 0.9
-        hitbox.BrickColor = BrickColor.new("Really red")
-        hitbox.Material = Enum.Material.Neon
-        hitbox.Shape = Enum.PartType.Ball
-        
-        -- Weld
-        local weld = Instance.new("WeldConstraint")
-        weld.Part0 = humanoidRootPart
-        weld.Part1 = hitbox
-        weld.Parent = hitbox
-        
-        hitbox.Parent = character
-        storage.hitboxParts[player] = hitbox
-        
-        -- Store original size
-        if not storage.originalSizes[player] then
-            storage.originalSizes[player] = humanoidRootPart.Size
-        end
-        humanoidRootPart.Size = Vector3.new(config.hitboxSize, config.hitboxSize, config.hitboxSize)
-    end)
-end
-
-local function restoreHitbox(player)
-    pcall(function()
-        if storage.hitboxParts[player] then
-            storage.hitboxParts[player]:Destroy()
-            storage.hitboxParts[player] = nil
-        end
-        
-        if player.Character then
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            local extendedHitbox = player.Character:FindFirstChild("ExtendedHitbox")
-            
-            if extendedHitbox then
-                extendedHitbox:Destroy()
-            end
-            
-            if humanoidRootPart and storage.originalSizes[player] then
-                humanoidRootPart.Size = storage.originalSizes[player]
-            end
-        end
-    end)
-end
-
-local function updateAllPlayers()
+    -- Update all enemy hitboxes in real-time
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if config.hitboxEnabled then
-                updateHitbox(player)
-            else
-                restoreHitbox(player)
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+            
+            if hrp then
+                -- Store original values once
+                if not gameplayData.originalValues[player.Name] then
+                    gameplayData.originalValues[player.Name] = {
+                        size = hrp.Size,
+                        transparency = hrp.Transparency,
+                        color = hrp.BrickColor,
+                        material = hrp.Material,
+                        canCollide = hrp.CanCollide,
+                        anchored = hrp.Anchored
+                    }
+                end
+                
+                -- Apply live scaling with collision prevention
+                local original = gameplayData.originalValues[player.Name]
+                local multiplier = liveGameplay.combatMultiplier
+                
+                hrp.Size = Vector3.new(
+                    original.size.X * multiplier,
+                    original.size.Y * multiplier,
+                    original.size.Z * multiplier
+                )
+                
+                -- PREVENT COLLISION PUSHBACK - Key changes here
+                hrp.CanCollide = false  -- Disable collision completely
+                hrp.Anchored = false    -- Keep unanchored for normal movement
+                
+                -- Create invisible collision detection part if needed
+                local detectionPart = hrp:FindFirstChild("HitboxDetector")
+                if not detectionPart and multiplier > 1 then
+                    detectionPart = Instance.new("Part")
+                    detectionPart.Name = "HitboxDetector"
+                    detectionPart.Size = hrp.Size
+                    detectionPart.CFrame = hrp.CFrame
+                    detectionPart.Transparency = 1
+                    detectionPart.CanCollide = false  -- No collision for detector either
+                    detectionPart.Anchored = true     -- Anchored to prevent physics interference
+                    detectionPart.Parent = hrp
+                    
+                    -- Weld detector to follow the player
+                    local weld = Instance.new("WeldConstraint")
+                    weld.Part0 = hrp
+                    weld.Part1 = detectionPart
+                    weld.Parent = hrp
+                end
+                
+                -- Update detector size if it exists
+                if detectionPart then
+                    detectionPart.Size = hrp.Size
+                end
+                
+                -- Live visual feedback
+                if multiplier > 1 then
+                    hrp.Transparency = math.max(0.2, 1 - (multiplier * 0.1))
+                    hrp.BrickColor = BrickColor.new("Really red")
+                    hrp.Material = Enum.Material.ForceField
+                else
+                    hrp.Transparency = original.transparency
+                    hrp.BrickColor = original.color
+                    hrp.Material = original.material
+                    hrp.CanCollide = original.canCollide  -- Restore original collision when not scaled
+                    
+                    -- Remove detector when not needed
+                    if detectionPart then
+                        detectionPart:Destroy()
+                    end
+                end
+                
+                -- Live hit detection setup using the detector or hrp
+                local hitPart = detectionPart or hrp
+                if not gameplayData.combatTargets[player.Name] then
+                    gameplayData.combatTargets[player.Name] = {}
+                    
+                    local hitConnection = hitPart.Touched:Connect(function(hit)
+                        if hit.Parent == LocalPlayer.Character then
+                            -- Real-time hit processing
+                            local damage = 10 * multiplier
+                            local critChance = math.min(95, multiplier * 15)
+                            local isCrit = math.random(1, 100) <= critChance
+                            
+                            if isCrit then damage = damage * 2 end
+                            
+                            print("🎯 LIVE HIT: " .. player.Name)
+                            print("💥 Damage: " .. damage .. (isCrit and " (CRITICAL!)" or ""))
+                            
+                            -- Live hit effect (non-physical)
+                            local effect = Instance.new("Explosion")
+                            effect.Position = hrp.Position
+                            effect.BlastRadius = multiplier * 2
+                            effect.BlastPressure = 0  -- No physics force
+                            effect.Parent = workspace
+                        end
+                    end)
+                    
+                    gameplayData.combatTargets[player.Name].connection = hitConnection
+                end
+            end
+        end
+    end
+    
+    -- Update player limbs in real-time with collision prevention
+    local character = LocalPlayer.Character
+    if character then
+        local limbs = {"Left Arm", "Right Arm", "Left Leg", "Right Leg"}
+        
+        for _, limbName in pairs(limbs) do
+            local limb = character:FindFirstChild(limbName)
+            if limb then
+                -- Store original limb data
+                if not gameplayData.playerLimbs[limbName] then
+                    gameplayData.playerLimbs[limbName] = {
+                        size = limb.Size,
+                        transparency = limb.Transparency,
+                        color = limb.BrickColor,
+                        canCollide = limb.CanCollide
+                    }
+                end
+                
+                -- Apply live limb scaling with collision prevention
+                local original = gameplayData.playerLimbs[limbName]
+                local reachMultiplier = 1 + (liveGameplay.combatMultiplier - 1) * 0.3
+                
+                limb.Size = original.size * reachMultiplier
+                
+                if liveGameplay.combatMultiplier > 1 then
+                    limb.Transparency = 0.3
+                    limb.BrickColor = BrickColor.new("Bright blue")
+                    limb.CanCollide = false  -- Prevent limb collision pushback
+                else
+                    limb.Transparency = original.transparency
+                    limb.BrickColor = original.color
+                    limb.CanCollide = original.canCollide  -- Restore original collision
+                end
+                
+                -- Live limb hit detection
+                if not gameplayData.combatTargets["limb_" .. limbName] then
+                    local limbConnection = limb.Touched:Connect(function(hit)
+                        local hitCharacter = hit.Parent
+                        if hitCharacter ~= character and hitCharacter:FindFirstChild("Humanoid") then
+                            local combatPower = 15 * liveGameplay.combatMultiplier
+                            print("👊 LIMB HIT: " .. hitCharacter.Name .. " | Power: " .. combatPower)
+                            
+                            -- Live combat effect (non-physical)
+                            local combatEffect = Instance.new("Explosion")
+                            combatEffect.Position = hit.Position
+                            combatEffect.BlastRadius = liveGameplay.combatMultiplier
+                            combatEffect.BlastPressure = 0  -- No physics force
+                            combatEffect.Parent = workspace
+                        end
+                    end)
+                    
+                    gameplayData.combatTargets["limb_" .. limbName] = {
+                        connection = limbConnection
+                    }
+                end
             end
         end
     end
 end
 
--- Delta-safe ESP functions
-local function createESP(player)
-    if player == LocalPlayer then return end
+-- REAL-TIME SPEED SYSTEM
+local function updateLiveSpeed()
+    if not liveGameplay.speedActive then return end
     
-    pcall(function()
-        local character = player.Character
-        if not character then return end
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = liveGameplay.speedValue
+        end
+    end
+end
+
+-- REAL-TIME JUMP SYSTEM
+local function updateLiveJump()
+    if not liveGameplay.jumpActive then return end
+    
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = liveGameplay.jumpValue
+        end
+    end
+end
+
+-- REAL-TIME NOCLIP SYSTEM
+local function updateLiveNoclip()
+    if not liveGameplay.noclipActive then return end
+    
+    local character = LocalPlayer.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+-- Create live control function
+local function createLiveControl(name, icon, yPos, activateFunc, deactivateFunc, hasSlider, minVal, maxVal, defaultVal)
+    local controlFrame = Instance.new("Frame")
+    controlFrame.Size = UDim2.new(1, 0, 0, hasSlider and 80 or 50)
+    controlFrame.Position = UDim2.new(0, 0, 0, yPos)
+    controlFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    controlFrame.BorderSizePixel = 1
+    controlFrame.BorderColor3 = Color3.fromRGB(50, 50, 70)
+    controlFrame.Parent = content
+    
+    -- Toggle button
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(1, -10, 0, 40)
+    toggleBtn.Position = UDim2.new(0, 5, 0, 5)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    toggleBtn.Text = icon .. " " .. name .. ": OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextScaled = true
+    toggleBtn.Font = Enum.Font.SourceSans
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Parent = controlFrame
+    
+    local isActive = false
+    local currentValue = defaultVal or 1
+    
+    -- Slider for live adjustment
+    if hasSlider then
+        local sliderFrame = Instance.new("Frame")
+        sliderFrame.Size = UDim2.new(1, -10, 0, 25)
+        sliderFrame.Position = UDim2.new(0, 5, 0, 50)
+        sliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+        sliderFrame.BorderSizePixel = 0
+        sliderFrame.Parent = controlFrame
         
-        -- Remove old ESP
-        local oldESP = character:FindFirstChild("ESP_Highlight")
-        if oldESP then oldESP:Destroy() end
+        local sliderButton = Instance.new("TextButton")
+        sliderButton.Size = UDim2.new(0, 20, 1, 0)
+        sliderButton.Position = UDim2.new(0, 0, 0, 0)
+        sliderButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        sliderButton.Text = ""
+        sliderButton.BorderSizePixel = 0
+        sliderButton.Parent = sliderFrame
         
-        -- Create highlight (Delta-safe)
-        local success, highlight = pcall(function()
-            local h = Instance.new("Highlight")
-            h.Name = "ESP_Highlight"
-            h.FillColor = Color3.fromRGB(255, 0, 0)
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Size = UDim2.new(0, 50, 1, 0)
+        valueLabel.Position = UDim2.new(1, -50, 0, 0)
+        valueLabel.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+        valueLabel.Text = tostring(currentValue)
+        valueLabel.TextScaled = true
+        valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        valueLabel.BorderSizePixel = 0
+        valueLabel.Parent = sliderFrame
+        
+        -- Live slider functionality
+        local dragging = false
+        
+        sliderButton.MouseButton1Down:Connect(function()
+            dragging = true
+        end)
+        
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local mouse = LocalPlayer:GetMouse()
+                local framePos = sliderFrame.AbsolutePosition.X
+                local frameSize = sliderFrame.AbsoluteSize.X - 20
+                local mousePos = mouse.X - framePos
+                
+                local percentage = math.max(0, math.min(1, mousePos / frameSize))
+                currentValue = minVal + (maxVal - minVal) * percentage
+                
+                if name:find("Combat") then
+                    currentValue = math.floor(currentValue * 10) / 10  -- Round to 1 decimal
+                else
+                    currentValue = math.floor(currentValue)
+                end
+                
+                sliderButton.Position = UDim2.new(percentage, 0, 0, 0)
+                valueLabel.Text = tostring(currentValue)
+                
+                -- Update live values immediately
+                if name:find("Combat") then
+                    liveGameplay.combatMultiplier = currentValue
+                elseif name:find("Speed") then
+                    liveGameplay.speedValue = currentValue
+                elseif name:find("Jump") then
+                    liveGameplay.jumpValue = currentValue
+                end
+                
+                print("🔄 LIVE UPDATE: " .. name .. " = " .. currentValue)
+            end
+        end)
+    end
+    
+    -- Toggle functionality
+    toggleBtn.MouseButton1Click:Connect(function()
+        isActive = not isActive
+        
+        if isActive then
+            toggleBtn.Text = icon .. " " .. name .. ": ON"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+            activateFunc(currentValue)
+            print("✅ " .. name .. " ACTIVATED (Live Mode)")
+        else
+            toggleBtn.Text = icon .. " " .. name .. ": OFF"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+            deactivateFunc()
+            print("❌ " .. name .. " DEACTIVATED")
+        end
+    end)
+    
+    return controlFrame
+end
+
+-- Create live controls
+createLiveControl("Live Combat", "⚔️", 10, 
+    function(value)
+        liveGameplay.combatActive = true
+        liveGameplay.combatMultiplier = value
+    end,
+    function()
+        liveGameplay.combatActive = false
+        -- Reset all combat effects
+        for playerName, data in pairs(gameplayData.combatTargets) do
+            if data.connection then data.connection:Disconnect() end
+        end
+        gameplayData.combatTargets = {}
+        
+        -- Reset hitboxes and restore collision
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and gameplayData.originalValues[player.Name] then
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local original = gameplayData.originalValues[player.Name]
+                    hrp.Size = original.size
+                    hrp.Transparency = original.transparency
+                    hrp.BrickColor = original.color
+                    hrp.Material = original.material
+                    hrp.CanCollide = original.canCollide  -- Restore collision
+                    hrp.Anchored = original.anchored
+                    
+                    -- Remove detector part
+                    local detector = hrp:FindFirstChild("HitboxDetector")
+                    if detector then detector:Destroy() end
+                end
+            end
+        end
+        
+        -- Reset player limbs collision
+        local character = LocalPlayer.Character
+        if character then
+            local limbs = {"Left Arm", "Right Arm", "Left Leg", "Right Leg"}
+            for _, limbName in pairs(limbs) do
+                local limb = character:FindFirstChild(limbName)
+                if limb and gameplayData.playerLimbs[limbName] then
+                    local original = gameplayData.playerLimbs[limbName]
+                    limb.CanCollide = original.canCollide
+                end
+            end
+        end
+    end,
+    true, 1, 20, 1
+)
+
+createLiveControl("Live Speed", "🚀", 100, 
+    function(value)
+        liveGameplay.speedActive = true
+        liveGameplay.speedValue = value
+    end,
+    function()
+        liveGameplay.speedActive = false
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.WalkSpeed = 16 end
+        end
+    end,
+    true, 16, 100, 16
+)
+
+createLiveControl("Live Jump", "🦘", 190, 
+    function(value)
+        liveGameplay.jumpActive = true
+        liveGameplay.jumpValue = value
+    end,
+    function()
+        liveGameplay.jumpActive = false
+        local character = LocalPl.FillColor = Color3.fromRGB(255, 0, 0)
             h.OutlineColor = Color3.fromRGB(255, 255, 255)
             h.FillTransparency = 0.5
             h.OutlineTransparency = 0
