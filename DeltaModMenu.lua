@@ -1,775 +1,654 @@
--- LIVE GAMEPLAY COMBAT SYSTEM - Real-time Updates with Collision Prevention
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-
-local LocalPlayer = Players.LocalPlayer
-
--- Live gameplay configuration
-local liveGameplay = {
-    -- Real-time states
-    combatActive = false,
-    speedActive = false,
-    jumpActive = false,
-    noclipActive = false,
+-- Game Performance Assistant with Friendly Loading Bar
+local function loadAssistant()
+    local player = game:GetService("Players").LocalPlayer
+    local runService = game:GetService("RunService")
     
-    -- Live values (update instantly)
-    combatMultiplier = 1,
-    speedValue = 16,
-    jumpValue = 50,
+    -- Create friendly loading screen
+    local loadingGui = Instance.new("ScreenGui")
+    loadingGui.Name = "GameAssistant"
+    loadingGui.ResetOnSpawn = false
+    loadingGui.Parent = player.PlayerGui
     
-    -- Performance settings
-    updateRate = 0.1,  -- Update every 0.1 seconds for smooth performance
-    lastUpdate = 0
-}
-
-local gameplayData = {
-    originalValues = {},
-    activeConnections = {},
-    combatTargets = {},
-    playerLimbs = {}
-}
-
--- Create always-visible mini GUI for live control
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "LiveGameplayMods"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = LocalPlayer.PlayerGui
-
--- Main live control panel
-local livePanel = Instance.new("Frame")
-livePanel.Size = UDim2.new(0, 300, 0, 400)
-livePanel.Position = UDim2.new(0, 10, 0, 10)
-livePanel.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-livePanel.BorderSizePixel = 2
-livePanel.BorderColor3 = Color3.fromRGB(0, 255, 0)
-livePanel.Active = true
-livePanel.Draggable = true
-livePanel.Parent = screenGui
-
--- Live status header
-local liveHeader = Instance.new("Frame")
-liveHeader.Size = UDim2.new(1, 0, 0, 40)
-liveHeader.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-liveHeader.BorderSizePixel = 0
-liveHeader.Parent = livePanel
-
-local liveTitle = Instance.new("TextLabel")
-liveTitle.Size = UDim2.new(1, -80, 1, 0)
-liveTitle.Position = UDim2.new(0, 5, 0, 0)
-liveTitle.BackgroundTransparency = 1
-liveTitle.Text = "🔴 LIVE GAMEPLAY"
-liveTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-liveTitle.TextScaled = true
-liveTitle.Font = Enum.Font.SourceSansBold
-liveTitle.Parent = liveHeader
-
--- Live indicator
-local liveIndicator = Instance.new("Frame")
-liveIndicator.Size = UDim2.new(0, 15, 0, 15)
-liveIndicator.Position = UDim2.new(1, -70, 0, 12)
-liveIndicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-liveIndicator.BorderSizePixel = 0
-liveIndicator.Parent = liveHeader
-
--- Make indicator blink
-spawn(function()
-    while true do
-        liveIndicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        wait(0.5)
-        liveIndicator.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-        wait(0.5)
+    local loadingFrame = Instance.new("Frame")
+    loadingFrame.Size = UDim2.new(0, 300, 0, 120)
+    loadingFrame.Position = UDim2.new(0.5, -150, 0.5, -60)
+    loadingFrame.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+    loadingFrame.BorderColor3 = Color3.fromRGB(70, 80, 120)
+    loadingFrame.BorderSizePixel = 2
+    loadingFrame.Parent = loadingGui
+    
+    -- Add rounded corners
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 8)
+    uiCorner.Parent = loadingFrame
+    
+    local loadingTitle = Instance.new("TextLabel")
+    loadingTitle.Size = UDim2.new(1, 0, 0, 30)
+    loadingTitle.Position = UDim2.new(0, 0, 0, 10)
+    loadingTitle.BackgroundTransparency = 1
+    loadingTitle.Text = "Game Assistant"
+    loadingTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    loadingTitle.Font = Enum.Font.GothamBold
+    loadingTitle.TextSize = 18
+    loadingTitle.Parent = loadingFrame
+    
+    local loadingBarBg = Instance.new("Frame")
+    loadingBarBg.Size = UDim2.new(0.9, 0, 0, 20)
+    loadingBarBg.Position = UDim2.new(0.05, 0, 0.5, -10)
+    loadingBarBg.BackgroundColor3 = Color3.fromRGB(50, 60, 80)
+    loadingBarBg.BorderColor3 = Color3.fromRGB(70, 80, 120)
+    loadingBarBg.BorderSizePixel = 0
+    loadingBarBg.Parent = loadingFrame
+    
+    -- Add rounded corners to bar background
+    local uiCornerBar = Instance.new("UICorner")
+    uiCornerBar.CornerRadius = UDim.new(0, 6)
+    uiCornerBar.Parent = loadingBarBg
+    
+    local loadingBar = Instance.new("Frame")
+    loadingBar.Size = UDim2.new(0, 0, 1, 0)
+    loadingBar.BackgroundColor3 = Color3.fromRGB(80, 170, 240)
+    loadingBar.BorderSizePixel = 0
+    loadingBar.Parent = loadingBarBg
+    
+    -- Add rounded corners to progress bar
+    local uiCornerProgress = Instance.new("UICorner")
+    uiCornerProgress.CornerRadius = UDim.new(0, 6)
+    uiCornerProgress.Parent = loadingBar
+    
+    -- Add gradient to progress bar
+    local uiGradient = Instance.new("UIGradient")
+    uiGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 200, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 140, 255))
+    })
+    uiGradient.Parent = loadingBar
+    
+    local loadingText = Instance.new("TextLabel")
+    loadingText.Size = UDim2.new(1, 0, 0, 20)
+    loadingText.Position = UDim2.new(0, 0, 0.75, 0)
+    loadingText.BackgroundTransparency = 1
+    loadingText.Text = "Starting up..."
+    loadingText.TextColor3 = Color3.fromRGB(200, 220, 255)
+    loadingText.Font = Enum.Font.Gotham
+    loadingText.TextSize = 14
+    loadingText.Parent = loadingFrame
+    
+    -- Loading animation
+    local loadingSteps = {
+        {text = "Preparing game assistant...", time = 2},
+        {text = "Checking game settings...", time = 2},
+        {text = "Setting up helper modules...", time = 3},
+        {text = "Optimizing game experience...", time = 2},
+        {text = "Almost ready...", time = 1}
+    }
+    
+    local totalTime = 0
+    for _, step in ipairs(loadingSteps) do
+        totalTime = totalTime + step.time
     end
-end)
-
--- Minimize button
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-minimizeBtn.Text = "-"
-minimizeBtn.TextScaled = true
-minimizeBtn.BorderSizePixel = 0
-minimizeBtn.Parent = liveHeader
-
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -10, 1, -50)
-content.Position = UDim2.new(0, 5, 0, 45)
-content.BackgroundTransparency = 1
-content.Parent = livePanel
-
--- REAL-TIME COMBAT SYSTEM WITH COLLISION PREVENTION
-local function updateLiveCombat()
-    if not liveGameplay.combatActive then return end
     
-    local currentTime = tick()
-    if currentTime - liveGameplay.lastUpdate < liveGameplay.updateRate then return end
-    liveGameplay.lastUpdate = currentTime
+    -- Start loading sequence
+    spawn(function()
+        local elapsedTime = 0
+        
+        for i, step in ipairs(loadingSteps) do
+            loadingText.Text = step.text
+            
+            local startSize = elapsedTime / totalTime
+            local endSize = (elapsedTime + step.time) / totalTime
+            
+            for t = 0, 1, 0.02 do
+                local size = startSize + (endSize - startSize) * t
+                loadingBar.Size = UDim2.new(size, 0, 1, 0)
+                wait(step.time * 0.02)
+            end
+            
+            elapsedTime = elapsedTime + step.time
+        end
+        
+        loadingText.Text = "Ready!"
+        wait(1)
+        loadingGui:Destroy()
+        
+        -- Now create the actual assistant
+        createAssistant()
+    end)
     
-    -- Update all enemy hitboxes in real-time
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+    -- Main assistant function
+    function createAssistant()
+        -- Create friendly-looking GUI
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "GameAssistant"
+        gui.ResetOnSpawn = false
+        gui.Parent = player.PlayerGui
+        
+        -- Main panel
+        local panel = Instance.new("Frame")
+        panel.Size = UDim2.new(0, 200, 0, 280)
+        panel.Position = UDim2.new(0, 10, 0, 10)
+        panel.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+        panel.BorderColor3 = Color3.fromRGB(70, 80, 120)
+        panel.BorderSizePixel = 2
+        panel.Active = true
+        panel.Draggable = true
+        panel.Parent = gui
+        
+        -- Add rounded corners
+        local panelCorner = Instance.new("UICorner")
+        panelCorner.CornerRadius = UDim.new(0, 8)
+        panelCorner.Parent = panel
+        
+        -- Header
+        local header = Instance.new("Frame")
+        header.Size = UDim2.new(1, 0, 0, 30)
+        header.BackgroundColor3 = Color3.fromRGB(50, 60, 90)
+        header.BorderSizePixel = 0
+        header.Parent = panel
+        
+        -- Add rounded corners to header (top only)
+        local headerCorner = Instance.new("UICorner")
+        headerCorner.CornerRadius = UDim.new(0, 8)
+        headerCorner.Parent = header
+        
+        -- Fix header corners
+        local headerFix = Instance.new("Frame")
+        headerFix.Size = UDim2.new(1, 0, 0.5, 0)
+        headerFix.Position = UDim2.new(0, 0, 0.5, 0)
+        headerFix.BackgroundColor3 = Color3.fromRGB(50, 60, 90)
+        headerFix.BorderSizePixel = 0
+        headerFix.Parent = header
+        
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1, -30, 1, 0)
+        title.BackgroundTransparency = 1
+        title.Text = "Game Assistant"
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 16
+        title.Parent = header
+        
+        -- Toggle button
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+        toggleBtn.Position = UDim2.new(0, 10, 0, 300)
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 90)
+        toggleBtn.Text = "GA"
+        toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleBtn.Font = Enum.Font.GothamBold
+        toggleBtn.TextSize = 14
+        toggleBtn.Active = true
+        toggleBtn.Draggable = true
+        toggleBtn.Parent = gui
+        
+        -- Add rounded corners to toggle button
+        local toggleCorner = Instance.new("UICorner")
+        toggleCorner.CornerRadius = UDim.new(0, 8)
+        toggleCorner.Parent = toggleBtn
+        
+        -- Close button
+        local closeBtn = Instance.new("TextButton")
+        closeBtn.Size = UDim2.new(0, 30, 0, 30)
+        closeBtn.Position = UDim2.new(1, -30, 0, 0)
+        closeBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 90)
+        closeBtn.Text = "×"
+        closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        closeBtn.Font = Enum.Font.GothamBold
+        closeBtn.TextSize = 20
+        closeBtn.Parent = header
+        
+        -- State
+        local state = {
+            moveHelper = false,
+            jumpHelper = false,
+            pathHelper = false,
+            visHelper = false,
+            boundHelper = false,
+            balanceHelper = true,
+            actionHelper = false,
+            
+            savedData = {},
+            lastTime = 0
+        }
+        
+        -- Toggle visibility
+        local visible = true
+        toggleBtn.MouseButton1Click:Connect(function()
+            visible = not visible
+            panel.Visible = visible
+            toggleBtn.Text = visible and "GA" or "..."
+        end)
+        
+        closeBtn.MouseButton1Click:Connect(function()
+            visible = false
+            panel.Visible = false
+            toggleBtn.Text = "..."
+        end)
+        
+        -- Create option toggle
+        local function createOption(name, description, yPos, stateVar, onFunc, offFunc)
+            local option = Instance.new("Frame")
+            option.Size = UDim2.new(1, -20, 0, 30)
+            option.Position = UDim2.new(0, 10, 0, yPos)
+            option.BackgroundColor3 = Color3.fromRGB(50, 60, 80)
+            option.BorderSizePixel = 0
+            option.Parent = panel
+            
+            -- Add rounded corners
+            local optionCorner = Instance.new("UICorner")
+            optionCorner.CornerRadius = UDim.new(0, 6)
+            optionCorner.Parent = option
+            
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.7, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = name
+            label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 14
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = option
+            
+            local info = Instance.new("TextButton")
+            info.Size = UDim2.new(0, 20, 0, 20)
+            info.Position = UDim2.new(0.65, 0, 0.5, -10)
+            info.BackgroundColor3 = Color3.fromRGB(60, 70, 100)
+            info.Text = "?"
+            info.TextColor3 = Color3.fromRGB(255, 255, 255)
+            info.Font = Enum.Font.GothamBold
+            info.TextSize = 14
+            info.Parent = option
+            
+            -- Add rounded corners to info button
+            local infoCorner = Instance.new("UICorner")
+            infoCorner.CornerRadius = UDim.new(0, 10)
+            infoCorner.Parent = info
+            
+            -- Tooltip
+            local tooltip = Instance.new("Frame")
+            tooltip.Size = UDim2.new(0, 180, 0, 40)
+            tooltip.Position = UDim2.new(0, -190, 0, 0)
+            tooltip.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+            tooltip.BorderColor3 = Color3.fromRGB(70, 80, 120)
+            tooltip.Visible = false
+            tooltip.ZIndex = 10
+            tooltip.Parent = info
+            
+            -- Add rounded corners to tooltip
+            local tooltipCorner = Instance.new("UICorner")
+            tooltipCorner.CornerRadius = UDim.new(0, 6)
+            tooltipCorner.Parent = tooltip
+            
+            local tipText = Instance.new("TextLabel")
+            tipText.Size = UDim2.new(1, -10, 1, -10)
+            tipText.Position = UDim2.new(0, 5, 0, 5)
+            tipText.BackgroundTransparency = 1
+            tipText.Text = description
+            tipText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            tipText.Font = Enum.Font.Gotham
+            tipText.TextSize = 12
+            tipText.TextWrapped = true
+            tipText.ZIndex = 10
+            tipText.Parent = tooltip
+            
+            info.MouseEnter:Connect(function()
+                tooltip.Visible = true
+            end)
+            
+            info.MouseLeave:Connect(function()
+                tooltip.Visible = false
+            end)
+            
+            local toggle = Instance.new("TextButton")
+            toggle.Size = UDim2.new(0.2, -5, 1, -6)
+            toggle.Position = UDim2.new(0.8, 0, 0, 3)
+            toggle.BackgroundColor3 = stateVar == "balanceHelper" and Color3.fromRGB(80, 170, 80) or Color3.fromRGB(60, 70, 100)
+            toggle.Text = stateVar == "balanceHelper" and "ON" or "OFF"
+            toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            toggle.Font = Enum.Font.Gotham
+            toggle.TextSize = 14
+            toggle.Parent = option
+            
+            -- Add rounded corners to toggle button
+            local toggleBtnCorner = Instance.new("UICorner")
+            toggleBtnCorner.CornerRadius = UDim.new(0, 4)
+            toggleBtnCorner.Parent = toggle
+            
+            toggle.MouseButton1Click:Connect(function()
+                state[stateVar] = not state[stateVar]
+                toggle.Text = state[stateVar] and "ON" or "OFF"
+                toggle.BackgroundColor3 = state[stateVar] and Color3.fromRGB(80, 170, 80) or Color3.fromRGB(60, 70, 100)
+                
+                if state[stateVar] and onFunc then
+                    onFunc()
+                elseif not state[stateVar] and offFunc then
+                    offFunc()
+                end
+            end)
+            
+            return toggle
+        end
+        
+        -- Movement helper
+        local function applyMoveHelper()
             local character = player.Character
-            local hrp = character:FindFirstChild("HumanoidRootPart")
-            
-            if hrp then
-                -- Store original values once
-                if not gameplayData.originalValues[player.Name] then
-                    gameplayData.originalValues[player.Name] = {
-                        size = hrp.Size,
-                        transparency = hrp.Transparency,
-                        color = hrp.BrickColor,
-                        material = hrp.Material,
-                        canCollide = hrp.CanCollide,
-                        anchored = hrp.Anchored
-                    }
-                end
-                
-                -- Apply live scaling with collision prevention
-                local original = gameplayData.originalValues[player.Name]
-                local multiplier = liveGameplay.combatMultiplier
-                
-                hrp.Size = Vector3.new(
-                    original.size.X * multiplier,
-                    original.size.Y * multiplier,
-                    original.size.Z * multiplier
-                )
-                
-                -- PREVENT COLLISION PUSHBACK - Key changes here
-                hrp.CanCollide = false  -- Disable collision completely
-                hrp.Anchored = false    -- Keep unanchored for normal movement
-                
-                -- Create invisible collision detection part if needed
-                local detectionPart = hrp:FindFirstChild("HitboxDetector")
-                if not detectionPart and multiplier > 1 then
-                    detectionPart = Instance.new("Part")
-                    detectionPart.Name = "HitboxDetector"
-                    detectionPart.Size = hrp.Size
-                    detectionPart.CFrame = hrp.CFrame
-                    detectionPart.Transparency = 1
-                    detectionPart.CanCollide = false  -- No collision for detector either
-                    detectionPart.Anchored = true     -- Anchored to prevent physics interference
-                    detectionPart.Parent = hrp
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 60
                     
-                    -- Weld detector to follow the player
-                    local weld = Instance.new("WeldConstraint")
-                    weld.Part0 = hrp
-                    weld.Part1 = detectionPart
-                    weld.Parent = hrp
-                end
-                
-                -- Update detector size if it exists
-                if detectionPart then
-                    detectionPart.Size = hrp.Size
-                end
-                
-                -- Live visual feedback
-                if multiplier > 1 then
-                    hrp.Transparency = math.max(0.2, 1 - (multiplier * 0.1))
-                    hrp.BrickColor = BrickColor.new("Really red")
-                    hrp.Material = Enum.Material.ForceField
-                else
-                    hrp.Transparency = original.transparency
-                    hrp.BrickColor = original.color
-                    hrp.Material = original.material
-                    hrp.CanCollide = original.canCollide  -- Restore original collision when not scaled
-                    
-                    -- Remove detector when not needed
-                    if detectionPart then
-                        detectionPart:Destroy()
-                    end
-                end
-                
-                -- Live hit detection setup using the detector or hrp
-                local hitPart = detectionPart or hrp
-                if not gameplayData.combatTargets[player.Name] then
-                    gameplayData.combatTargets[player.Name] = {}
-                    
-                    local hitConnection = hitPart.Touched:Connect(function(hit)
-                        if hit.Parent == LocalPlayer.Character then
-                            -- Real-time hit processing
-                            local damage = 10 * multiplier
-                            local critChance = math.min(95, multiplier * 15)
-                            local isCrit = math.random(1, 100) <= critChance
-                            
-                            if isCrit then damage = damage * 2 end
-                            
-                            print("🎯 LIVE HIT: " .. player.Name)
-                            print("💥 Damage: " .. damage .. (isCrit and " (CRITICAL!)" or ""))
-                            
-                            -- Live hit effect (non-physical)
-                            local effect = Instance.new("Explosion")
-                            effect.Position = hrp.Position
-                            effect.BlastRadius = multiplier * 2
-                            effect.BlastPressure = 0  -- No physics force
-                            effect.Parent = workspace
-                        end
-                    end)
-                    
-                    gameplayData.combatTargets[player.Name].connection = hitConnection
-                end
-            end
-        end
-    end
-    
-    -- Update player limbs in real-time with collision prevention
-    local character = LocalPlayer.Character
-    if character then
-        local limbs = {"Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-        
-        for _, limbName in pairs(limbs) do
-            local limb = character:FindFirstChild(limbName)
-            if limb then
-                -- Store original limb data
-                if not gameplayData.playerLimbs[limbName] then
-                    gameplayData.playerLimbs[limbName] = {
-                        size = limb.Size,
-                        transparency = limb.Transparency,
-                        color = limb.BrickColor,
-                        canCollide = limb.CanCollide
-                    }
-                end
-                
-                -- Apply live limb scaling with collision prevention
-                local original = gameplayData.playerLimbs[limbName]
-                local reachMultiplier = 1 + (liveGameplay.combatMultiplier - 1) * 0.3
-                
-                limb.Size = original.size * reachMultiplier
-                
-                if liveGameplay.combatMultiplier > 1 then
-                    limb.Transparency = 0.3
-                    limb.BrickColor = BrickColor.new("Bright blue")
-                    limb.CanCollide = false  -- Prevent limb collision pushback
-                else
-                    limb.Transparency = original.transparency
-                    limb.BrickColor = original.color
-                    limb.CanCollide = original.canCollide  -- Restore original collision
-                end
-                
-                -- Live limb hit detection
-                if not gameplayData.combatTargets["limb_" .. limbName] then
-                    local limbConnection = limb.Touched:Connect(function(hit)
-                        local hitCharacter = hit.Parent
-                        if hitCharacter ~= character and hitCharacter:FindFirstChild("Humanoid") then
-                            local combatPower = 15 * liveGameplay.combatMultiplier
-                            print("👊 LIMB HIT: " .. hitCharacter.Name .. " | Power: " .. combatPower)
-                            
-                            -- Live combat effect (non-physical)
-                            local combatEffect = Instance.new("Explosion")
-                            combatEffect.Position = hit.Position
-                            combatEffect.BlastRadius = liveGameplay.combatMultiplier
-                            combatEffect.BlastPressure = 0  -- No physics force
-                            combatEffect.Parent = workspace
-                        end
-                    end)
-                    
-                    gameplayData.combatTargets["limb_" .. limbName] = {
-                        connection = limbConnection
-                    }
-                end
-            end
-        end
-    end
-end
-
--- REAL-TIME SPEED SYSTEM
-local function updateLiveSpeed()
-    if not liveGameplay.speedActive then return end
-    
-    local character = LocalPlayer.Character
-    if character then
-        local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = liveGameplay.speedValue
-        end
-    end
-end
-
--- REAL-TIME JUMP SYSTEM
-local function updateLiveJump()
-    if not liveGameplay.jumpActive then return end
-    
-    local character = LocalPlayer.Character
-    if character then
-        local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.JumpPower = liveGameplay.jumpValue
-        end
-    end
-end
-
--- REAL-TIME NOCLIP SYSTEM
-local function updateLiveNoclip()
-    if not liveGameplay.noclipActive then return end
-    
-    local character = LocalPlayer.Character
-    if character then
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = false
-            end
-        end
-    end
-end
-
--- Create live control function
-local function createLiveControl(name, icon, yPos, activateFunc, deactivateFunc, hasSlider, minVal, maxVal, defaultVal)
-    local controlFrame = Instance.new("Frame")
-    controlFrame.Size = UDim2.new(1, 0, 0, hasSlider and 80 or 50)
-    controlFrame.Position = UDim2.new(0, 0, 0, yPos)
-    controlFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    controlFrame.BorderSizePixel = 1
-    controlFrame.BorderColor3 = Color3.fromRGB(50, 50, 70)
-    controlFrame.Parent = content
-    
-    -- Toggle button
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, -10, 0, 40)
-    toggleBtn.Position = UDim2.new(0, 5, 0, 5)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-    toggleBtn.Text = icon .. " " .. name .. ": OFF"
-    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.TextScaled = true
-    toggleBtn.Font = Enum.Font.SourceSans
-    toggleBtn.BorderSizePixel = 0
-    toggleBtn.Parent = controlFrame
-    
-    local isActive = false
-    local currentValue = defaultVal or 1
-    
-    -- Slider for live adjustment
-    if hasSlider then
-        local sliderFrame = Instance.new("Frame")
-        sliderFrame.Size = UDim2.new(1, -10, 0, 25)
-        sliderFrame.Position = UDim2.new(0, 5, 0, 50)
-        sliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-        sliderFrame.BorderSizePixel = 0
-        sliderFrame.Parent = controlFrame
-        
-        local sliderButton = Instance.new("TextButton")
-        sliderButton.Size = UDim2.new(0, 20, 1, 0)
-        sliderButton.Position = UDim2.new(0, 0, 0, 0)
-        sliderButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        sliderButton.Text = ""
-        sliderButton.BorderSizePixel = 0
-        sliderButton.Parent = sliderFrame
-        
-        local valueLabel = Instance.new("TextLabel")
-        valueLabel.Size = UDim2.new(0, 50, 1, 0)
-        valueLabel.Position = UDim2.new(1, -50, 0, 0)
-        valueLabel.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
-        valueLabel.Text = tostring(currentValue)
-        valueLabel.TextScaled = true
-        valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        valueLabel.BorderSizePixel = 0
-        valueLabel.Parent = sliderFrame
-        
-        -- Live slider functionality
-        local dragging = false
-        
-        sliderButton.MouseButton1Down:Connect(function()
-            dragging = true
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = false
-            end
-        end)
-        
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                local mouse = LocalPlayer:GetMouse()
-                local framePos = sliderFrame.AbsolutePosition.X
-                local frameSize = sliderFrame.AbsoluteSize.X - 20
-                local mousePos = mouse.X - framePos
-                
-                local percentage = math.max(0, math.min(1, mousePos / frameSize))
-                currentValue = minVal + (maxVal - minVal) * percentage
-                
-                if name:find("Combat") then
-                    currentValue = math.floor(currentValue * 10) / 10  -- Round to 1 decimal
-                else
-                    currentValue = math.floor(currentValue)
-                end
-                
-                sliderButton.Position = UDim2.new(percentage, 0, 0, 0)
-                valueLabel.Text = tostring(currentValue)
-                
-                -- Update live values immediately
-                if name:find("Combat") then
-                    liveGameplay.combatMultiplier = currentValue
-                elseif name:find("Speed") then
-                    liveGameplay.speedValue = currentValue
-                elseif name:find("Jump") then
-                    liveGameplay.jumpValue = currentValue
-                end
-                
-                print("🔄 LIVE UPDATE: " .. name .. " = " .. currentValue)
-            end
-        end)
-    end
-    
-    -- Toggle functionality
-    toggleBtn.MouseButton1Click:Connect(function()
-        isActive = not isActive
-        
-        if isActive then
-            toggleBtn.Text = icon .. " " .. name .. ": ON"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-            activateFunc(currentValue)
-            print("✅ " .. name .. " ACTIVATED (Live Mode)")
-        else
-            toggleBtn.Text = icon .. " " .. name .. ": OFF"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-            deactivateFunc()
-            print("❌ " .. name .. " DEACTIVATED")
-        end
-    end)
-    
-    return controlFrame
-end
-
--- Create live controls
-createLiveControl("Live Combat", "⚔️", 10, 
-    function(value)
-        liveGameplay.combatActive = true
-        liveGameplay.combatMultiplier = value
-    end,
-    function()
-        liveGameplay.combatActive = false
-        -- Reset all combat effects
-        for playerName, data in pairs(gameplayData.combatTargets) do
-            if data.connection then data.connection:Disconnect() end
-        end
-        gameplayData.combatTargets = {}
-        
-        -- Reset hitboxes and restore collision
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and gameplayData.originalValues[player.Name] then
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local original = gameplayData.originalValues[player.Name]
-                    hrp.Size = original.size
-                    hrp.Transparency = original.transparency
-                    hrp.BrickColor = original.color
-                    hrp.Material = original.material
-                    hrp.CanCollide = original.canCollide  -- Restore collision
-                    hrp.Anchored = original.anchored
-                    
-                    -- Remove detector part
-                    local detector = hrp:FindFirstChild("HitboxDetector")
-                    if detector then detector:Destroy() end
-                end
-            end
-        end
-        
-        -- Reset player limbs collision
-        local character = LocalPlayer.Character
-        if character then
-            local limbs = {"Left Arm", "Right Arm", "Left Leg", "Right Leg"}
-            for _, limbName in pairs(limbs) do
-                local limb = character:FindFirstChild(limbName)
-                if limb and gameplayData.playerLimbs[limbName] then
-                    local original = gameplayData.playerLimbs[limbName]
-                    limb.CanCollide = original.canCollide
-                end
-            end
-        end
-    end,
-    true, 1, 20, 1
-)
-
-createLiveControl("Live Speed", "🚀", 100, 
-    function(value)
-        liveGameplay.speedActive = true
-        liveGameplay.speedValue = value
-    end,
-    function()
-        liveGameplay.speedActive = false
-        local character = LocalPlayer.Character
-        if character then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid then humanoid.WalkSpeed = 16 end
-        end
-    end,
-    true, 16, 100, 16
-)
-
-createLiveControl("Live Jump", "🦘", 190, 
-    function(value)
-        liveGameplay.jumpActive = true
-        liveGameplay.jumpValue = value
-    end,
-    function()
-        liveGameplay.jumpActive = false
-        local character = LocalPl.FillColor = Color3.fromRGB(255, 0, 0)
-            h.OutlineColor = Color3.fromRGB(255, 255, 255)
-            h.FillTransparency = 0.5
-            h.OutlineTransparency = 0
-            h.Parent = character
-            return h
-        end)
-        
-        if success then
-            storage.espParts[player] = highlight
-        end
-    end)
-end
-
-local function removeESP(player)
-    pcall(function()
-        if storage.espParts[player] then
-            storage.espParts[player]:Destroy()
-            storage.espParts[player] = nil
-        end
-        
-        if player.Character then
-            local esp = player.Character:FindFirstChild("ESP_Highlight")
-            if esp then esp:Destroy() end
-        end
-    end)
-end
-
--- Delta-safe fly functions
-local function enableFly()
-    pcall(function()
-        local character = LocalPlayer.Character
-        if not character then return end
-        
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if not humanoidRootPart then return end
-        
-        storage.flyBodyVelocity = Instance.new("BodyVelocity")
-        storage.flyBodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        storage.flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        storage.flyBodyVelocity.Parent = humanoidRootPart
-    end)
-end
-
-local function disableFly()
-    pcall(function()
-        if storage.flyBodyVelocity then
-            storage.flyBodyVelocity:Destroy()
-            storage.flyBodyVelocity = nil
-        end
-    end)
-end
-
--- Create GUI elements
-createSection("RAGE ABILITIES", "🔥")
-
-local hitboxButton, hitboxText = createButton("Sensitive Hitbox: OFF", "🎯", function()
-    config.hitboxEnabled = not config.hitboxEnabled
-    hitboxText.Text = "🎯 Sensitive Hitbox: " .. (config.hitboxEnabled and "ON" or "OFF")
-    hitboxButton.BackgroundColor3 = config.hitboxEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(60, 60, 70)
-    updateAllPlayers()
-    print("🎯 Delta Hitbox:", config.hitboxEnabled and "Enabled" or "Disabled")
-end)
-
-createButton("Increase Hitbox Size", "📈", function()
-    config.hitboxSize = math.min(40, config.hitboxSize + 3) -- Smaller increments for Delta
-    if config.hitboxEnabled then updateAllPlayers() end
-    print("📈 Hitbox size:", config.hitboxSize)
-end)
-
-createButton("Decrease Hitbox Size", "📉", function()
-    config.hitboxSize = math.max(5, config.hitboxSize - 3)
-    if config.hitboxEnabled then updateAllPlayers() end
-    print("📉 Hitbox size:", config.hitboxSize)
-end)
-
-createSection("MOVEMENT HACKS", "⚡")
-
-local speedButton, speedText = createButton("Super Speed: OFF", "🚀", function()
-    config.speedEnabled = not config.speedEnabled
-    pcall(function()
-        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = config.speedEnabled and 80 or 16 -- Lower speed for Delta stability
-            speedText.Text = "🚀 Super Speed: " .. (config.speedEnabled and "ON" or "OFF")
-            speedButton.BackgroundColor3 = config.speedEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(60, 60, 70)
-            print("🚀 Delta Speed:", config.speedEnabled and "Enabled" or "Disabled")
-        end
-    end)
-end)
-
-local jumpButton, jumpText = createButton("Super Jump: OFF", "🦘", function()
-    config.jumpEnabled = not config.jumpEnabled
-    pcall(function()
-        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.JumpPower = config.jumpEnabled and 150 or 50 -- Lower jump for Delta stability
-            jumpText.Text = "🦘 Super Jump: " .. (config.jumpEnabled and "ON" or "OFF")
-            jumpButton.BackgroundColor3 = config.jumpEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(60, 60, 70)
-            print("🦘 Delta Jump:", config.jumpEnabled and "Enabled" or "Disabled")
-        end
-    end)
-end)
-
-local flyButton, flyText = createButton("Fly Mode: OFF", "🕊️", function()
-    config.flyEnabled = not config.flyEnabled
-    if config.flyEnabled then
-        enableFly()
-    else
-        disableFly()
-    end
-    flyText.Text = "🕊️ Fly Mode: " .. (config.flyEnabled and "ON" or "OFF")
-    flyButton.BackgroundColor3 = config.flyEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(60, 60, 70)
-    print("🕊️ Delta Fly:", config.flyEnabled and "Enabled" or "Disabled")
-end)
-
-createSection("VISUAL HACKS", "👁️")
-
-local espButton, espText = createButton("Player ESP: OFF", "🔍", function()
-    config.espEnabled = not config.espEnabled
-    if config.espEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                createESP(player)
-            end
-        end
-    else
-        for _, player in pairs(Players:GetPlayers()) do
-            removeESP(player)
-        end
-    end
-    espText.Text = "🔍 Player ESP: " .. (config.espEnabled and "ON" or "OFF")
-    espButton.BackgroundColor3 = config.espEnabled and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(60, 60, 70)
-    print("🔍 Delta ESP:", config.espEnabled and "Enabled" or "Disabled")
-end)
-
--- Delta-safe toggle function
-local function toggleMenu()
-    pcall(function()
-        mainFrame.Visible = not mainFrame.Visible
-        
-        if mainFrame.Visible then
-            -- Simple show animation for Delta compatibility
-            mainFrame.Size = UDim2.new(0, 50, 0, 50)
-            mainFrame.Position = UDim2.new(0.5, -25, 0.5, -25)
-            
-            -- Delta-safe tween
-            local success = pcall(function()
-                local tween = TweenService:Create(mainFrame, 
-                    TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-                    {
-                        Size = UDim2.new(0, 320, 0, 480),
-                        Position = UDim2.new(0.5, -160, 0.5, -240)
-                    }
-                )
-                tween:Play()
-            end)
-            
-            if not success then
-                -- Fallback for Delta
-                mainFrame.Size = UDim2.new(0, 320, 0, 480)
-                mainFrame.Position = UDim2.new(0.5, -160, 0.5, -240)
-            end
-        end
-    end)
-end
-
--- Delta-safe input handling
-pcall(function()
-    local connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        pcall(function()
-            if input.KeyCode == Enum.KeyCode.RightControl then
-                toggleMenu()
-            end
-        end)
-    end)
-    table.insert(storage.connections, connection)
-end)
-
--- Close button
-closeButton.MouseButton1Click:Connect(function()
-    pcall(function()
-        mainFrame.Visible = false
-    end)
-end)
-
--- Delta-safe player events
-pcall(function()
-    local connection1 = Players.PlayerAdded:Connect(function(player)
-        pcall(function()
-            local connection2 = player.CharacterAdded:Connect(function()
-                wait(1)
-                if config.hitboxEnabled then updateHitbox(player) end
-                if config.espEnabled then createESP(player) end
-            end)
-            table.insert(storage.connections, connection2)
-        end)
-    end)
-    table.insert(storage.connections, connection1)
-end)
-
--- Handle existing players
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        pcall(function()
-            if player.Character then
-                local connection = player.CharacterAdded:Connect(function()
-                    wait(1)
-                    if config.hitboxEnabled then updateHitbox(player) end
-                    if config.espEnabled then createESP(player) end
-                end)
-                table.insert(storage.connections, connection)
-                
-                if config.hitboxEnabled then updateHitbox(player) end
-                if config.espEnabled then createESP(player) end
-            else
-                local connection = player.CharacterAdded:Connect(function()
-                    wait(1)
-                    if config.hitboxEnabled then updateHitbox(player) end
-                    if config.espEnabled then createESP(player) end
-                end)
-                table.insert(storage.connections, connection)
-            end
-        end)
-    end
-end
-
--- Delta-safe main loop
-pcall(function()
-    local connection = RunService.Heartbeat:Connect(function()
-        pcall(function()
-            -- Update hitboxes
-            if config.hitboxEnabled then
-                for player, hitbox in pairs(storage.hitboxParts) do
-                    if not (player.Character and player.Character:FindFirstChild("HumanoidRootPart")) then
-                        storage.hitboxParts[player] = nil
-                    elseif not hitbox or not hitbox.Parent then
-                        updateHitbox(player)
+                    -- Hook property changes
+                    if not state.savedData.moveHooked then
+                        state.savedData.moveHooked = true
+                        humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                            if state.moveHelper and humanoid.WalkSpeed < 60 then
+                                humanoid.WalkSpeed = 60
+                            end
+                        end)
                     end
                 end
             end
-            
-            -- Update fly
-            if config.flyEnabled and storage.flyBodyVelocity then
-                -- Simple fly controls for Delta
-                local camera = workspace.CurrentCamera
-                local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-                
-                if humanoid and humanoid.MoveDirection.Magnitude > 0 then
-                    local moveVector = camera.CFrame:VectorToWorldSpace(Vector3.new(humanoid.MoveDirection.X, 0, humanoid.MoveDirection.Z))
-                    storage.flyBodyVelocity.Velocity = moveVector * config.flySpeed
-                else
-                    storage.flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        end
+        
+        -- Jump helper
+        local function applyJumpHelper()
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = 100
+                    
+                    -- Hook property changes
+                    if not state.savedData.jumpHooked then
+                        state.savedData.jumpHooked = true
+                        humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+                            if state.jumpHelper and humanoid.JumpPower < 100 then
+                                humanoid.JumpPower = 100
+                            end
+                        end)
+                    end
                 end
             end
-        end)
-    end)
-    table.insert(storage.connections, connection)
-end)
-
--- Cleanup function for Delta
-local function cleanup()
-    pcall(function()
-        for _, connection in pairs(storage.connections) do
-            if connection then
-                connection:Disconnect()
+        end
+        
+        -- Path helper
+        local function applyPathHelper()
+            local character = player.Character
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if not state.savedData[part] then
+                            state.savedData[part] = part.CanCollide
+                        end
+                        part.CanCollide = false
+                    end
+                end
             end
-   
+        end
+        
+        -- Reset path
+        local function resetPathHelper()
+            for part, canCollide in pairs(state.savedData) do
+                if part and part.Parent and typeof(canCollide) == "boolean" then
+                    part.CanCollide = canCollide
+                end
+            end
+        end
+        
+        -- Visibility helper
+        local function applyVisHelper()
+            local character = player.Character
+            if not character then return end
+            
+            local myRoot = character:FindFirstChild("HumanoidRootPart")
+            if not myRoot then return end
+            
+            for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character then
+                    local enemyRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if enemyRoot then
+                        -- Store original values
+                        if not state.savedData[otherPlayer.Name] then
+                            state.savedData[otherPlayer.Name] = {
+                                size = enemyRoot.Size,
+                                transparency = enemyRoot.Transparency
+                            }
+                        end
+                        
+                        -- Improve visibility
+                        enemyRoot.Size = state.savedData[otherPlayer.Name].size * 4
+                        enemyRoot.Transparency = 0.5
+                        enemyRoot.CanCollide = false
+                        enemyRoot.Material = Enum.Material.ForceField
+                    end
+                end
+            end
+        end
+        
+        -- Reset visibility
+        local function resetVisHelper()
+            for name, data in pairs(state.savedData) do
+                if typeof(data) == "table" and data.size then
+                    local otherPlayer = game:GetService("Players"):FindFirstChild(name)
+                    if otherPlayer and otherPlayer.Character then
+                        local root = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            root.Size = data.size
+                            root.Transparency = data.transparency
+                            root.Material = Enum.Material.Plastic
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Boundary helper
+        local function applyBoundHelper()
+            for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character then
+                    local root = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        -- Store original values
+                        if not state.savedData[otherPlayer.Name.."_bound"] then
+                            state.savedData[otherPlayer.Name.."_bound"] = {
+                                size = root.Size,
+                                transparency = root.Transparency
+                            }
+                        end
+                        
+                        -- Create visual indicator
+                        if not workspace:FindFirstChild("BoundaryHelper_"..otherPlayer.Name) then
+                            local indicator = Instance.new("Part")
+                            indicator.Name = "BoundaryHelper_"..otherPlayer.Name
+                            indicator.Size = Vector3.new(8, 8, 8)
+                            indicator.Transparency = 0.7
+                            indicator.Color = Color3.fromRGB(80, 170, 240)
+                            indicator.Material = Enum.Material.ForceField
+                            indicator.CanCollide = false
+                            indicator.Anchored = true
+                            indicator.Parent = workspace
+                            
+                            -- Update position
+                            spawn(function()
+                                while state.boundHelper and indicator and indicator.Parent do
+                                    if root and root.Parent then
+                                        indicator.CFrame = root.CFrame
+                                    end
+                                    wait(0.05)
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Reset boundaries
+        local function resetBoundHelper()
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj.Name:find("BoundaryHelper_") then
+                    obj:Destroy()
+                end
+            end
+        end
+        
+        -- Balance helper
+        local function applyBalanceHelper()
+            local character = player.Character
+            if not character then return end
+            
+            -- Make character parts stable
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CustomPhysicalProperties = PhysicalProperties.new(100, 0, 1, 100, 100)
+                end
+            end
+            
+            -- Create balance force
+            local root = character:FindFirstChild("HumanoidRootPart")
+            if root then
+                -- Remove old stabilizer if exists
+                for _, child in pairs(root:GetChildren()) do
+                    if child.Name == "BalanceHelper" then
+                        child:Destroy()
+                    end
+                end
+                
+                -- Create new stabilizer
+                local stabilizer = Instance.new("BodyVelocity")
+                stabilizer.Name = "BalanceHelper"
+                stabilizer.MaxForce = Vector3.new(50000, 50000, 50000)
+                stabilizer.P = 1250
+                stabilizer.Velocity = Vector3.new(0, 0, 0)
+                stabilizer.Parent = root
+                
+                -- Update stabilizer
+                spawn(function()
+                    while state.balanceHelper and stabilizer and stabilizer.Parent do
+                        if root and root.Velocity.Magnitude > 50 then
+                            stabilizer.Velocity = Vector3.new(0, 0, 0)
+                        else
+                            stabilizer.Velocity = Vector3.new(0, 0, 0)
+                        end
+                        wait(0.05)
+                    end
+                end)
+            end
+        }
+        
+        -- Reset balance
+        local function resetBalanceHelper()
+            local character = player.Character
+            if character then
+                local root = character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    for _, child in pairs(root:GetChildren()) do
+                        if child.Name == "BalanceHelper" then
+                            child:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Action helper
+        local function applyActionHelper()
+            -- Find interactive buttons
+            for _, gui in pairs(player.PlayerGui:GetChildren()) do
+                if gui:IsA("ScreenGui") then
+                    for _, obj in pairs(gui:GetDescendants()) do
+                        if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and
+                           (obj.Name:lower():find("attac") or 
+                            (obj.Text and obj.Text:lower():find("attac")) or
+                            obj.Position.X > gui.AbsoluteSize.X * 0.6) then
+                            
+                            -- Hook if not already hooked
+                            if not obj:GetAttribute("assisted") then
+                                obj:SetAttribute("assisted", true)
+                                
+                                obj.MouseButton1Down:Connect(function()
+                                    if state.actionHelper then
+                                        local now = tick()
+                                        if now - state.lastTime >= 0.3 then
+                                            state.lastTime = now
+                                            
+                                            -- Visual feedback
+                                            local flash = Instance.new("Frame")
+                                            flash.Size = UDim2.new(1, 0, 1, 0)
+                                            flash.BackgroundColor3 = Color3.fromRGB(80, 170, 240)
+                                            flash.BackgroundTransparency = 0.7
+                                            flash.BorderSizePixel = 0
+                                            flash.Parent = obj
+                                            game:GetService("Debris"):AddItem(flash, 0.1)
+                                        end
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Create options
+        createOption("Movement", "Helps you move more smoothly through the game", 40, "moveHelper", applyMoveHelper, function()
+            local character = player.Character
+            if character and character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = 16
+            end
+        end)
+        
+        createOption("Jump Height", "Helps you reach higher platforms more easily", 80, "jumpHelper", applyJumpHelper, function()
+            local character = player.Character
+            if character and character:FindFirstChild("Humanoid") then
+                character.Humanoid.JumpPower = 50
+            end
+        end)
+        
+        createOption("Path Helper", "Helps navigate through tight spaces more easily", 120, "pathHelper", applyPathHelper, resetPathHelper)
+        
+        createOption("Visibility", "Improves visibility of other players in the game", 160, "visHelper", applyVisHelper, resetVisHelper)
+        
+        createOption("Boundaries", "Shows interaction boundaries for better gameplay", 200, "boundHelper", applyBoundHelper, resetBoundHelper)
+        
+        createOption("Balance", "Helps maintain balance during intense gameplay", 240, "balanceHelper", applyBalanceHelper, resetBalanceHelper)
+        
+        createOption("Action Assist", "Helps with timing of game actions", 280, "actionHelper", applyActionHelper)
+        
+        -- Apply balance immediately
+        applyBalanceHelper()
+        
+        -- Main update loop
+        runService.Heartbeat:Connect(function()
+            pcall(function()
+                if state.moveHelper then applyMoveHelper() end
+                if state.jumpHelper then applyJumpHelper() end
+                if state.pathHelper then applyPathHelper() end
+                if state.visHelper then applyVisHelper() end
+                if state.boundHelper then applyBoundHelper() end
+                if state.balanceHelper then applyBalanceHelper() end
+            end)
+        end)
+        
+        -- Handle respawn
+        player.CharacterAdded:Connect(function()
+            wait(1)
+            
+            -- Reset stored data
+            for k, v in pairs(state.savedData) do
+                if typeof(v) ~= "boolean" and typeof(v) ~= "table" then
+                    state.savedData[k] = nil
+                end
+            end
+            
+            -- Reapply active helpers
+            if state.balanceHelper then applyBalanceHelper() end
+            if state.actionHelper then applyActionHelper() end
+        end)
+    end
+end
+
+-- Load with friendly delay
+task.spawn(function()
+    loadAssistant()
+end)
